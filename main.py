@@ -38,6 +38,7 @@ class Sizes(Enum):
 	LEGENDARY = 6
 
 class Flowers(Enum):
+	LOTUS = 0
 	ROSE = 1
 	TULIP = 2
 	SUNFLOWER = 3
@@ -67,7 +68,6 @@ class Flowers(Enum):
 	PASSIFLORA = 27
 	DANDELION = 28
 	GAYFEATHER = 29
-	LOTUS = 30
 
 class Months(Enum):
 	JAN = 1
@@ -171,51 +171,66 @@ class Shop:
 		self.openDays = openDays
 		self.employeesDict = employeesDict
 
+class Account:
+	def __init__(self,money,ShopCollection):
+		self.money = money
+		self.ShopCollection = ShopCollection
+
 class MainWindow(PyQt5.QtWidgets.QMainWindow):
-	def __init__(self):
+	def __init__(self,money):
 		super().__init__()
+		self.flowerSpeciesList = initFlowers()
+		self.money = money
 		self.init_UI()
-		initFlowers()
 
 	def init_UI(self):
 		self.resize(800,600)
 		self.center()
 		self.setWindowTitle('flowerShop')
-		exitAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/exitIcon.png'),'Exit',self)
-		exitAct.setShortcut('Ctrl+Q')
-		exitAct.triggered.connect(PyQt5.QtWidgets.qApp.quit)
 
-		self.toolbarFunctions = self.addToolBar('Functions')
-		self.toolbarFunctions.setMovable(False)
-		self.toolbarFunctions.addAction(exitAct)
-
-		saveAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/saveIcon.png'),'Save',self)
-		saveAct.setShortcut('Ctrl+S')
-		saveAct.triggered.connect(saveGame)
-
-		self.toolbarFunctions.addAction(saveAct)
-
-		shopViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/shopIcon.png'),'Shop',self)
-		shopViewAct.triggered.connect(viewShops)
+		#create toolbars
+		toolbarFunctions = PyQt5.QtWidgets.QToolBar('Functions',self)
+		self.addToolBar(PyQt5.QtCore.Qt.TopToolBarArea,toolbarFunctions)
+		toolbarFunctions.setAllowedAreas(PyQt5.QtCore.Qt.TopToolBarArea)
+		toolbarFunctions.setMovable(False)
 
 		toolbarViews = PyQt5.QtWidgets.QToolBar('View',self)
 		self.addToolBar(PyQt5.QtCore.Qt.LeftToolBarArea,toolbarViews)
 		toolbarViews.setAllowedAreas(PyQt5.QtCore.Qt.LeftToolBarArea)
 		toolbarViews.setMovable(False)
-		toolbarViews.addAction(shopViewAct)
+
+		#create actions
+		exitAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/exitIcon.png'),'Exit',self)
+		exitAct.setShortcut('Ctrl+Q')
+		exitAct.triggered.connect(PyQt5.QtWidgets.qApp.quit)
+
+		saveAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/saveIcon.png'),'Save',self)
+		saveAct.setShortcut('Ctrl+S')
+		saveAct.triggered.connect(saveGame)
+
+		shopViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/shopIcon.png'),'Shop',self)
+		shopViewAct.triggered.connect(viewShops)
+
+		overViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/overviewIcon.png'),'Overview',self)
+		overViewAct.triggered.connect(lambda:overView(self))
 
 		bouquetViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/bouquetIcon.png'),'Bouquet',self)
 		bouquetViewAct.triggered.connect(viewBouquets)
 
-		toolbarViews.addAction(bouquetViewAct)
-
 		flowerViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/flowerIcon.png'),'Flower',self)
 		flowerViewAct.triggered.connect(viewFlowers)
 
+		#add actions to toolbars
+		toolbarFunctions.addAction(exitAct)
+		toolbarFunctions.addAction(saveAct)
+
+		toolbarViews.addAction(overViewAct)
+		toolbarViews.addAction(shopViewAct)
+		toolbarViews.addAction(bouquetViewAct)
 		toolbarViews.addAction(flowerViewAct)
 
+		#main overview screen
 		overView(self)
-
 
 	def center(self):
 		qr = self.frameGeometry()
@@ -224,6 +239,7 @@ class MainWindow(PyQt5.QtWidgets.QMainWindow):
 		self.move(qr.topLeft())
 
 def initFlowers():
+	Lotus = FlowerSpecies([Color.RED],Flowers.LOTUS,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
 	Rose = FlowerSpecies([Color.RED],Flowers.ROSE,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
 	Tulip = FlowerSpecies([Color.RED],Flowers.TULIP,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
 	Sunflower = FlowerSpecies([Color.RED],Flowers.SUNFLOWER,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
@@ -253,20 +269,22 @@ def initFlowers():
 	Passiflora = FlowerSpecies([Color.RED],Flowers.PASSIFLORA,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
 	Dandelion = FlowerSpecies([Color.RED],Flowers.DANDELION,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
 	Gayfeather = FlowerSpecies([Color.RED],Flowers.GAYFEATHER,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
-	Lotus = FlowerSpecies([Color.RED],Flowers.LOTUS,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
-	return
+	flowersList = [Lotus,Rose,Tulip,Sunflower,Daisy,Magnolia,Daffodil,Iris,Carnation,Jasmine,Lily,Cherry_Blossom,Pansy,Violet,Marigold,Lilac,Poinsettia,Chrysanthemum,Bleeding_Heart,Babys_Breath,Poppy,Bluebell,Camomile,Zinnia,Cosmo,Jacobs_Ladder,Rafflesia,Passiflora,Dandelion,Gayfeather]
+	return flowersList
 
-def calculateAgeTest():
-	Rose = FlowerSpecies([Color.RED],Flowers.ROSE,[Sizes.TINY,Sizes.LEGENDARY],16,Months.DEC)
-	Daisy = FlowerSpecies([Color.GREEN],Flowers.DAISY,[Sizes.TINY],22,Months.DEC)
-	Flower1 = Flower(1,Color.RED,Rose,Sizes.LEGENDARY,15,random.randint(1,2))
-	Flower2 = Flower(1,Color.GREEN,Daisy,Sizes.TINY,20,random.randint(1,2))
-	dictFlowers = {Flower1:3,Flower2:2}
-	bouquet1 = Bouquet(dictFlowers)
-	print(bouquet1.age)
-	bouquet1.senesce()
-	print(bouquet1.age)
-	print(bouquet1.alive)
+def nextDay(account,moneyLabel,inventoryLabel):
+	for shop in account.ShopCollection:
+		for flower in shop.flowerStock:
+			if random.randint(1,100) > 50:
+				account.money+=flower.price
+				shop.flowerStock.remove(flower)
+			else:
+				flower.senesce()
+		moneyLabel.setText('Money: %s'%str(account.money))
+		list1=[]
+		for flower in account.ShopCollection[0].flowerStock:
+			list1.append(flower.flowerSpecies.species)
+		inventoryLabel.setText('Inventory: %s'%list1)
 	return
 
 def saveGame():
@@ -282,28 +300,66 @@ def viewFlowers():
 	pass
 
 def overView(window):
-	btn1 = PyQt5.QtWidgets.QPushButton('Calculate Age')
-	btn1.clicked.connect(calculateAgeTest)
+	Shop1 = Shop([],[],Locations.SUBWAY,[],[],[],{})
+	mainAccount = Account(5,[Shop1])
+	#create buttons
+	btn1 = PyQt5.QtWidgets.QPushButton('Next Day')
+	btn1.clicked.connect(lambda:nextDay(mainAccount,moneyLabel,inventoryLabel))
 	btn2 = PyQt5.QtWidgets.QPushButton('Quit')
 	btn2.clicked.connect(PyQt5.QtWidgets.QApplication.instance().quit)
+	moneyLabel = PyQt5.QtWidgets.QLabel('Money: %s'%str(mainAccount.money))
+	list1 = []
+	for flower in mainAccount.ShopCollection[0].flowerStock:
+		list1.append(flower.flowerSpecies.species)
+	inventoryLabel = PyQt5.QtWidgets.QLabel('Inventory: %s'%list1)
+	#flowerCreateButton1 = PyQt5.QtWidgets.QPushButton('Buy Rose Flower')
+	#flowerCreateButton1.clicked.connect(lambda:createFlower(window.flowerSpeciesList,Flowers.ROSE,moneyLabel))
+	#flowerCreateButton2 = PyQt5.QtWidgets.QPushButton('Buy Tulip Flower')
+	#flowerCreateButton2.clicked.connect(lambda:createFlower(window.flowerSpeciesList,Flowers.TULIP,moneyLabel))
 
-	hbox = PyQt5.QtWidgets.QHBoxLayout()
-	hbox.addStretch(1)
-	hbox.addWidget(btn1)
-	hbox.addWidget(btn2)
+	flowerCombo = PyQt5.QtWidgets.QComboBox(window)
+	flowerCombo.addItems([str(item.species.name) for item in window.flowerSpeciesList])
 
-	vbox = PyQt5.QtWidgets.QVBoxLayout()
-	vbox.addStretch(1)
-	vbox.addLayout(hbox)
+	buyButton = PyQt5.QtWidgets.QPushButton('Buy')
+	buyButton.clicked.connect(lambda:createFlower(window.flowerSpeciesList,flowerCombo.currentText(),mainAccount,moneyLabel,inventoryLabel))
+
+	#create grid and add widgets
+	grid = PyQt5.QtWidgets.QGridLayout()
+
+	grid.addWidget(moneyLabel,1,0)
+	grid.addWidget(inventoryLabel,0,2)
+	#grid.addWidget(flowerCreateButton1,1,1)
+	grid.addWidget(flowerCombo,3,1)
+	grid.addWidget(buyButton,3,2)
+	#grid.addWidget(flowerCreateButton2,1,2)
+	grid.addWidget(btn1,2,1)
+	grid.addWidget(btn2,2,2)
 
 	mainWidget = PyQt5.QtWidgets.QWidget(window)
-	mainWidget.setLayout(vbox)
+	mainWidget.setLayout(grid)
 	window.setCentralWidget(mainWidget)
 
 	window.show()
 
-def createFlower():
-	pass
+def createFlower(flowerSpeciesList,flowerTypeStr,account,moneyLabel,inventoryLabel):
+	for flower in Flowers:
+		if flower.name == flowerTypeStr:
+			flowerType = flower
+	if account.money > 0:
+		account.money -= 1
+		moneyLabel.setText('Money: %s'%str(account.money))
+		flower1 = Flower(2.5,Color.RED,flowerSpeciesList[flowerType.value],Sizes.MEDIUM,random.randint(1,5),random.randint(1,3))
+		account.ShopCollection[0].flowerStock.append(flower1)
+		list1=[]
+		for flower in account.ShopCollection[0].flowerStock:
+			list1.append(flower.flowerSpecies.species)
+		inventoryLabel.setText('Inventory: %s'%list1)
+		print("type: "+str(flower1.flowerSpecies.species))
+		print("age: "+str(flower1.age))
+		print("ageRate: "+str(flower1.ageRate))
+	else:
+		print("no money left!")
+	return
 
 def createBouquet():
 	pass
@@ -313,7 +369,9 @@ def foundShop():
 
 random.seed()
 
+money = 5
+
 app = PyQt5.QtWidgets.QApplication(sys.argv)
-ex = MainWindow()
+ex = MainWindow(money)
 
 app.exec()
