@@ -4,8 +4,16 @@
 
 #Flower Shop Ordering To Go - Create a flower shop application which deals in flower objects and use those flower objects in a bouquet object which can then be sold. Keep track of the number of objects and when you may need to order more.
 
-from enum import Enum
-import PyQt5
+from enum import Enum #so we can remain sane
+import sys
+#from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QDesktopWidget, QAction, qApp, QToolBar #GUI
+#from PyQt5.QtCore import Qt
+#from PyQt5.QtGui import QIcon
+import PyQt5.QtWidgets
+import PyQt5.QtCore
+import PyQt5.QtGui
+import random #for randomization functions
+import json #for saving our settings
 
 class Color(Enum):
 	RED = 1
@@ -84,6 +92,14 @@ class Weekdays(Enum):
 	FRI = 6
 	SAT = 7
 
+class Locations(Enum):
+	SUBWAY = 1
+	DOWNTOWN_STREET = 2
+	SUBURBS_STREET = 3
+	MALL = 4
+	INTERNET = 5
+	FESTIVAL = 6
+
 class FlowerSpecies:
 	def __init__(self,possibleColors,species,possibleSizes,lifespan,growMonths):
 		self.possibleColors = possibleColors
@@ -119,7 +135,7 @@ class Bouquet:
 		self.price = 0
 		for flower,count in self.flowers.items():
 			self.price += count*flower.price
-		self.age = min([flower.age for flower in self.flowers.keys()])
+		self.age = max([flower.age for flower in self.flowers.keys()])
 		self.alive = True
 
 	def senesce(self):
@@ -127,31 +143,177 @@ class Bouquet:
 			flower.senesce()
 			if flower.alive == False:
 				self.alive = False
-		self.age = min([flower.age for flower in self.flowers.keys()])
-
-class Shop:
-	def __init__(self,flowerStock,stockPrices,flowerPrices,openingHours,employeesDict):
-		self.flowerStock = flowerStock
-		self.stockPrices = stockPrices
-		self.flowerPrices = flowerPrices
-		self.openingHours = openingHours
-		self.employeesDict = employeesDict
+		self.age = max([flower.age for flower in self.flowers.keys()])
 
 class flowerOrder:
-	def __init__(self,bouquetDict,totalPrice,deliveryDate,):
+	def __init__(self,bouquetDict,totalPrice,deliveryDate,beauty):
 		self.bouquetDict = bouquetDict
 		self.totalPrice = 0
 		for bouquet,count in self.bouquetDict.items():
 			self.totalPrice += count*bouquet.price
+		self.deliveryDate = deliveryDate
+		self.beauty = beauty
+		self.alive = True
 
-#testing
-Rose = FlowerSpecies([Color.RED],Flowers.ROSE,[Sizes.TINY,Sizes.LEGENDARY],16,Months.DEC)
-Daisy = FlowerSpecies([Color.GREEN],Flowers.DAISY,[Sizes.TINY],22,Months.DEC)
-Flower1 = Flower(1,Color.RED,Rose,Sizes.LEGENDARY,15,1)
-Flower2 = Flower(1,Color.GREEN,Daisy,Sizes.TINY,20,1)
-dictFlowers = {Flower1:3,Flower2:2}
-bouquet1 = Bouquet(dictFlowers)
-print(bouquet1.age)
-bouquet1.senesce()
-print(bouquet1.age)
-print(bouquet1.alive)
+	def senesce(self):
+		for bouquet in self.bouquetDict.keys():
+			bouquet.senesce()
+			if bouquet.alive == False:
+				self.alive = False
+
+class Shop:
+	def __init__(self,flowerStock,stockPrices,location,flowerPrices,openingHours,openDays,employeesDict):
+		self.flowerStock = flowerStock
+		self.stockPrices = stockPrices
+		self.location = location
+		self.flowerPrices = flowerPrices
+		self.openingHours = openingHours
+		self.openDays = openDays
+		self.employeesDict = employeesDict
+
+class MainWindow(PyQt5.QtWidgets.QMainWindow):
+	def __init__(self):
+		super().__init__()
+		self.init_UI()
+		initFlowers()
+
+	def init_UI(self):
+		self.resize(800,600)
+		self.center()
+		self.setWindowTitle('flowerShop')
+		exitAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/exitIcon.png'),'Exit',self)
+		exitAct.setShortcut('Ctrl+Q')
+		exitAct.triggered.connect(PyQt5.QtWidgets.qApp.quit)
+
+		self.toolbarFunctions = self.addToolBar('Functions')
+		self.toolbarFunctions.setMovable(False)
+		self.toolbarFunctions.addAction(exitAct)
+
+		saveAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/saveIcon.png'),'Save',self)
+		saveAct.setShortcut('Ctrl+S')
+		saveAct.triggered.connect(saveGame)
+
+		self.toolbarFunctions.addAction(saveAct)
+
+		shopViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/shopIcon.png'),'Shop',self)
+		shopViewAct.triggered.connect(viewShops)
+
+		toolbarViews = PyQt5.QtWidgets.QToolBar('View',self)
+		self.addToolBar(PyQt5.QtCore.Qt.LeftToolBarArea,toolbarViews)
+		toolbarViews.setAllowedAreas(PyQt5.QtCore.Qt.LeftToolBarArea)
+		toolbarViews.setMovable(False)
+		toolbarViews.addAction(shopViewAct)
+
+		bouquetViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/bouquetIcon.png'),'Bouquet',self)
+		bouquetViewAct.triggered.connect(viewBouquets)
+
+		toolbarViews.addAction(bouquetViewAct)
+
+		flowerViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/flowerIcon.png'),'Flower',self)
+		flowerViewAct.triggered.connect(viewFlowers)
+
+		toolbarViews.addAction(flowerViewAct)
+
+		overView(self)
+
+
+	def center(self):
+		qr = self.frameGeometry()
+		cp = PyQt5.QtWidgets.QDesktopWidget().availableGeometry().center()
+		qr.moveCenter(cp)
+		self.move(qr.topLeft())
+
+def initFlowers():
+	Rose = FlowerSpecies([Color.RED],Flowers.ROSE,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Tulip = FlowerSpecies([Color.RED],Flowers.TULIP,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Sunflower = FlowerSpecies([Color.RED],Flowers.SUNFLOWER,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Daisy = FlowerSpecies([Color.RED],Flowers.DAISY,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Magnolia = FlowerSpecies([Color.RED],Flowers.MAGNOLIA,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Daffodil = FlowerSpecies([Color.RED],Flowers.DAFFODIL,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Iris = FlowerSpecies([Color.RED],Flowers.IRIS,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Carnation = FlowerSpecies([Color.RED],Flowers.CARNATION,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Jasmine = FlowerSpecies([Color.RED],Flowers.JASMINE,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Lily = FlowerSpecies([Color.RED],Flowers.LILY,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Cherry_Blossom = FlowerSpecies([Color.RED],Flowers.CHERRY_BLOSSOM,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Pansy = FlowerSpecies([Color.RED],Flowers.PANSY,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Violet = FlowerSpecies([Color.RED],Flowers.VIOLET,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Marigold = FlowerSpecies([Color.RED],Flowers.MARIGOLD,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Lilac = FlowerSpecies([Color.RED],Flowers.LILAC,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Poinsettia = FlowerSpecies([Color.RED],Flowers.POINSETTIA,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Chrysanthemum = FlowerSpecies([Color.RED],Flowers.CHRYSANTHEMUM,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Bleeding_Heart = FlowerSpecies([Color.RED],Flowers.BLEEDING_HEART,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Babys_Breath = FlowerSpecies([Color.RED],Flowers.BABYS_BREATH,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Poppy = FlowerSpecies([Color.RED],Flowers.POPPY,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Bluebell = FlowerSpecies([Color.RED],Flowers.BLUEBELL,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Camomile = FlowerSpecies([Color.RED],Flowers.CAMOMILE,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Zinnia = FlowerSpecies([Color.RED],Flowers.ZINNIA,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Cosmo = FlowerSpecies([Color.RED],Flowers.COSMO,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Jacobs_Ladder = FlowerSpecies([Color.RED],Flowers.JACOBS_LADDER,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Rafflesia = FlowerSpecies([Color.RED],Flowers.RAFFLESIA,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Passiflora = FlowerSpecies([Color.RED],Flowers.PASSIFLORA,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Dandelion = FlowerSpecies([Color.RED],Flowers.DANDELION,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Gayfeather = FlowerSpecies([Color.RED],Flowers.GAYFEATHER,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	Lotus = FlowerSpecies([Color.RED],Flowers.LOTUS,[Sizes.MEDIUM,Sizes.LARGE,Sizes.LEGENDARY],10,[Months.APR,Months.MAY,Months.JUN,Months.JUL,Months.AUG])
+	return
+
+def calculateAgeTest():
+	Rose = FlowerSpecies([Color.RED],Flowers.ROSE,[Sizes.TINY,Sizes.LEGENDARY],16,Months.DEC)
+	Daisy = FlowerSpecies([Color.GREEN],Flowers.DAISY,[Sizes.TINY],22,Months.DEC)
+	Flower1 = Flower(1,Color.RED,Rose,Sizes.LEGENDARY,15,random.randint(1,2))
+	Flower2 = Flower(1,Color.GREEN,Daisy,Sizes.TINY,20,random.randint(1,2))
+	dictFlowers = {Flower1:3,Flower2:2}
+	bouquet1 = Bouquet(dictFlowers)
+	print(bouquet1.age)
+	bouquet1.senesce()
+	print(bouquet1.age)
+	print(bouquet1.alive)
+	return
+
+def saveGame():
+	pass
+
+def viewShops():
+	pass
+
+def viewBouquets():
+	pass
+
+def viewFlowers():
+	pass
+
+def overView(window):
+	btn1 = PyQt5.QtWidgets.QPushButton('Calculate Age')
+	btn1.clicked.connect(calculateAgeTest)
+	btn2 = PyQt5.QtWidgets.QPushButton('Quit')
+	btn2.clicked.connect(PyQt5.QtWidgets.QApplication.instance().quit)
+
+	hbox = PyQt5.QtWidgets.QHBoxLayout()
+	hbox.addStretch(1)
+	hbox.addWidget(btn1)
+	hbox.addWidget(btn2)
+
+	vbox = PyQt5.QtWidgets.QVBoxLayout()
+	vbox.addStretch(1)
+	vbox.addLayout(hbox)
+
+	mainWidget = PyQt5.QtWidgets.QWidget(window)
+	mainWidget.setLayout(vbox)
+	window.setCentralWidget(mainWidget)
+
+	window.show()
+
+def createFlower():
+	pass
+
+def createBouquet():
+	pass
+
+def foundShop():
+	pass
+
+random.seed()
+
+app = PyQt5.QtWidgets.QApplication(sys.argv)
+ex = MainWindow()
+
+app.exec()
