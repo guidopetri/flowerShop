@@ -14,6 +14,7 @@ import PyQt5.QtCore
 import PyQt5.QtGui
 import random #for randomization functions
 import json #for saving our settings
+import collections
 
 class Color(Enum):
 	RED = 1
@@ -129,9 +130,16 @@ class Flower:
 		if self.age >= self.flowerSpecies.lifespan:
 			self.alive = False
 
-class Bouquet:
-	def __init__(self,FlowersDict):
-		self.flowers = FlowersDict
+class savedBouquet:
+	def __init__(self,name,flowersDict,window):
+		self.name = name
+		self.flowers = flowersDict
+		window.savedBouquetsList.append(self)
+
+class BouquetInstance:
+	def __init__(self,name,flowersDict):
+		self.name = name
+		self.flowers = flowersDict
 		self.price = 0
 		for flower,count in self.flowers.items():
 			self.price += count*flower.price
@@ -180,6 +188,7 @@ class MainWindow(PyQt5.QtWidgets.QMainWindow):
 	def __init__(self,money):
 		super().__init__()
 		self.flowerSpeciesList = initFlowers()
+		self.savedBouquetsList = []
 		self.money = money
 		self.init_UI()
 
@@ -214,8 +223,11 @@ class MainWindow(PyQt5.QtWidgets.QMainWindow):
 		overViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/overviewIcon.png'),'Overview',self)
 		overViewAct.triggered.connect(lambda:overView(self))
 
+		bouquetCreateViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/bouquetIcon.png'),'Bouquet',self)
+		bouquetCreateViewAct.triggered.connect(lambda:createBouquetsView(self))
+
 		bouquetViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/bouquetIcon.png'),'Bouquet',self)
-		bouquetViewAct.triggered.connect(viewBouquets)
+		bouquetViewAct.triggered.connect(lambda:viewBouquets(self))
 
 		flowerViewAct = PyQt5.QtWidgets.QAction(PyQt5.QtGui.QIcon('media/images/flowerIcon.png'),'Flower',self)
 		flowerViewAct.triggered.connect(viewFlowers)
@@ -227,6 +239,7 @@ class MainWindow(PyQt5.QtWidgets.QMainWindow):
 		toolbarViews.addAction(overViewAct)
 		toolbarViews.addAction(shopViewAct)
 		toolbarViews.addAction(bouquetViewAct)
+		toolbarViews.addAction(bouquetCreateViewAct)
 		toolbarViews.addAction(flowerViewAct)
 
 		#main overview screen
@@ -281,10 +294,9 @@ def nextDay(account,moneyLabel,inventoryLabel):
 			else:
 				flower.senesce()
 		moneyLabel.setText('Money: %s'%str(account.money))
-		list1=[]
+		inventoryLabel.clear()
 		for flower in account.ShopCollection[0].flowerStock:
-			list1.append(flower.flowerSpecies.species)
-		inventoryLabel.setText('Inventory: %s'%list1)
+			inventoryLabel.addItem(flower.flowerSpecies.species.name)
 	return
 
 def saveGame():
@@ -293,8 +305,65 @@ def saveGame():
 def viewShops():
 	pass
 
-def viewBouquets():
-	pass
+def viewBouquets(window):
+	bouquetNameField = PyQt5.QtWidgets.QLineEdit()
+	bouquetNameField.setReadOnly(True)
+	inventoryBouquets = PyQt5.QtWidgets.QListWidget()
+	for item in window.savedBouquetsList:
+		inventoryBouquets.addItem(item.name)
+	inventoryBouquetDetail = PyQt5.QtWidgets.QListWidget()
+	inventoryBouquets.itemClicked.connect(lambda:viewBouquetDetails(bouquetNameField,inventoryBouquets.currentItem().text(),inventoryBouquetDetail,window))
+
+	grid = PyQt5.QtWidgets.QGridLayout()
+	grid.addWidget(bouquetNameField,1,1,1,2)
+	grid.addWidget(inventoryBouquets,2,1)
+	grid.addWidget(inventoryBouquetDetail,2,2)
+
+	mainWidget = PyQt5.QtWidgets.QWidget(window)
+	mainWidget.setLayout(grid)
+	window.setCentralWidget(mainWidget)
+
+	window.show()
+
+	return
+
+def viewBouquetDetails(nameField,bouquetName,inventoryList,window):
+	nameField.setText(bouquetName)
+	for item in window.savedBouquetsList:
+		if item.name == bouquetName:
+			bouquet = item
+	inventoryList.clear()
+	for item,count in bouquet.flowers.items():
+		for i in range(0,count):
+			inventoryList.addItem(item)
+	return
+
+def createBouquetsView(window):
+	bouquetNameField = PyQt5.QtWidgets.QLineEdit('Bouquet Name')
+	inventoryFlowers = PyQt5.QtWidgets.QListWidget()
+	for item in window.flowerSpeciesList:
+		inventoryFlowers.addItem(item.species.name)
+	inventoryBouquet = PyQt5.QtWidgets.QListWidget()
+	addFlowerButton = PyQt5.QtWidgets.QPushButton('Add Flower')
+	addFlowerButton.clicked.connect(lambda:inventoryBouquet.addItem(inventoryFlowers.currentItem().text()))
+	createBouquetButton = PyQt5.QtWidgets.QPushButton('Create Bouquet')
+	createBouquetButton.clicked.connect(lambda:createBouquet(inventoryBouquet,bouquetNameField,window))
+
+	grid = PyQt5.QtWidgets.QGridLayout()
+	grid.addWidget(bouquetNameField,1,1,1,2)
+	grid.addWidget(inventoryFlowers,2,1)
+	grid.addWidget(inventoryBouquet,2,2)
+	grid.addWidget(addFlowerButton,3,2)
+	grid.addWidget(createBouquetButton,4,1,1,2)
+
+	mainWidget = PyQt5.QtWidgets.QWidget(window)
+	mainWidget.setLayout(grid)
+	window.setCentralWidget(mainWidget)
+
+	window.show()
+
+	return
+
 
 def viewFlowers():
 	pass
@@ -309,9 +378,9 @@ def overView(window):
 	btn2.clicked.connect(PyQt5.QtWidgets.QApplication.instance().quit)
 	moneyLabel = PyQt5.QtWidgets.QLabel('Money: %s'%str(mainAccount.money))
 	list1 = []
+	inventoryLabel = PyQt5.QtWidgets.QListWidget()
 	for flower in mainAccount.ShopCollection[0].flowerStock:
-		list1.append(flower.flowerSpecies.species)
-	inventoryLabel = PyQt5.QtWidgets.QLabel('Inventory: %s'%list1)
+		inventoryLabel.addItem(flower.flowerSpecies.species.name)
 	#flowerCreateButton1 = PyQt5.QtWidgets.QPushButton('Buy Rose Flower')
 	#flowerCreateButton1.clicked.connect(lambda:createFlower(window.flowerSpeciesList,Flowers.ROSE,moneyLabel))
 	#flowerCreateButton2 = PyQt5.QtWidgets.QPushButton('Buy Tulip Flower')
@@ -340,20 +409,18 @@ def overView(window):
 	window.setCentralWidget(mainWidget)
 
 	window.show()
+	return
 
 def createFlower(flowerSpeciesList,flowerTypeStr,account,moneyLabel,inventoryLabel):
 	for flower in Flowers:
 		if flower.name == flowerTypeStr:
 			flowerType = flower
-	if account.money > 0:
+	if account.money >= 1:
 		account.money -= 1
 		moneyLabel.setText('Money: %s'%str(account.money))
 		flower1 = Flower(2.5,Color.RED,flowerSpeciesList[flowerType.value],Sizes.MEDIUM,random.randint(1,5),random.randint(1,3))
 		account.ShopCollection[0].flowerStock.append(flower1)
-		list1=[]
-		for flower in account.ShopCollection[0].flowerStock:
-			list1.append(flower.flowerSpecies.species)
-		inventoryLabel.setText('Inventory: %s'%list1)
+		inventoryLabel.addItem(flower1.flowerSpecies.species.name)
 		print("type: "+str(flower1.flowerSpecies.species))
 		print("age: "+str(flower1.age))
 		print("ageRate: "+str(flower1.ageRate))
@@ -361,8 +428,14 @@ def createFlower(flowerSpeciesList,flowerTypeStr,account,moneyLabel,inventoryLab
 		print("no money left!")
 	return
 
-def createBouquet():
-	pass
+def createBouquet(inventoryBouquet,nameField,window):
+	bouquetFlowers = []
+	for row in range(0,inventoryBouquet.count()):
+		bouquetFlowers.append(inventoryBouquet.item(row).text())
+	flowersDict = collections.Counter(bouquetFlowers)
+	newBouquet = savedBouquet(nameField.text(),flowersDict,window)
+	inventoryBouquet.clear()
+	print("new bouquet %s created!"%nameField.text())
 
 def foundShop():
 	pass
